@@ -22,20 +22,27 @@ so a full classification is a single keystroke.
    - Firefox: <https://addons.mozilla.org/firefox/addon/violentmonkey/>
    - Chrome: <https://chromewebstore.google.com/detail/violentmonkey/jinjaccalgkegednnccohejagnlnfdag>
 
-2. **Copy the script.** Open `zoo-keys.user.js` in a text editor (or in a browser tab
-   via its `file://` path) and select all, copy.
+2. **Click this link:**
+   <https://raw.githubusercontent.com/nataliehogg/zookeys/main/zookeys.user.js>
 
-3. **Paste it in.** Click the Violentmonkey toolbar icon → *Create a new script*.
-   Select all in the editor that opens, paste over it, `Ctrl+S`.
+   Your userscript manager will intercept it and offer to install. Click *Confirm
+   installation*. That's it — you'll get updates automatically as the script is
+   tuned.
 
-4. **Check it.** Go to a classification page — a dark panel should appear
+3. **Check it.** Go to a classification page — a dark panel should appear
    bottom-right listing the keys.
 
-> Dragging the `.user.js` file onto a browser tab also works, but only if you grant
-> the extension "Allow access to file URLs" first (and it's awkward under snap-packaged
-> Firefox). Pasting avoids that entirely. If you host this on GitHub, clicking the
-> **raw** file link installs it in one step with no permissions needed — that's the
-> easiest way to share with collaborators.
+<details>
+<summary>Installing from a local file instead</summary>
+
+Open `zoo-keys.user.js` in an editor, select all, copy. Then click the Violentmonkey
+toolbar icon → *Create a new script*, select all in the editor that opens, paste over
+it, `Ctrl+S`.
+
+Dragging the file onto a browser tab also works, but only after you grant the
+extension "Allow access to file URLs" — and that's awkward under snap-packaged
+Firefox. Neither local method gets automatic updates.
+</details>
 
 ### First run
 
@@ -75,6 +82,13 @@ Other knobs:
 - `doneMatch` — the submit button's text. Plain `Done` is preferred over
   `Done & Talk` so you aren't dropped into the Talk board.
 - `exclude` — text of buttons that must never be treated as answers.
+
+## Releasing a change
+
+Automatic updates only fire when the version number goes up. After editing the
+script, **bump `@version` in the header** before pushing — otherwise installed copies
+will never notice. Managers check roughly daily, so allow a day for it to propagate,
+or tell people to hit *Check for updates* in the extension dashboard.
 
 ## Troubleshooting
 

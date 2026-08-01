@@ -4,6 +4,10 @@
 // @version      1.0.0
 // @description  Classify with single keypresses instead of clicking. Press ? for help.
 // @author       Natalie Hogg
+// @homepageURL  https://github.com/nataliehogg/zoo-keys
+// @supportURL   https://github.com/nataliehogg/zoo-keys/issues
+// @downloadURL  https://raw.githubusercontent.com/nataliehogg/zoo-keys/main/zoo-keys.user.js
+// @updateURL    https://raw.githubusercontent.com/nataliehogg/zoo-keys/main/zoo-keys.user.js
 // @match        https://www.zooniverse.org/*
 // @match        https://*.zooniverse.org/*
 // @grant        none
