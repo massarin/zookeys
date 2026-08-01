@@ -2,10 +2,9 @@
 
 For reference, one-shotted on Claude Opus 5 with the following prompt in about 2 minutes:
 
-"claude, I'm doing lens classifications on galaxy zoo/the zooniverse project. however, the user interface is super annoying, I have to click at least   
-  twice for all objects. it would be way better if I could use keyboard shortcuts to classify the lenses (i.e. A B C X O), O for off-centre. is it       
-  possible to write a browser extension or some other kind of tool that could do this? whatever it is, it must be lightweight and easily                 
-  shareable/useable by others"
+
+> "claude, I'm doing lens classifications on galaxy zoo/the zooniverse project. however, the user interface is super annoying, I have to click at least twice for all objects. it would be way better if I could use keyboard shortcuts to classify the lenses (i.e. A B C X O), O for off-centre. is it possible to write a browser extension or some other kind of tool that could do this? whatever it is, it must be lightweight and easily shareable/useable by others"
+
 
 A ~250-line userscript that adds keyboard shortcuts to the Zooniverse classification
 interface, so one keypress does what currently takes two or three clicks.
