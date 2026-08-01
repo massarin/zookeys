@@ -23,7 +23,7 @@ so a full classification is a single keystroke.
    - Chrome: <https://chromewebstore.google.com/detail/violentmonkey/jinjaccalgkegednnccohejagnlnfdag>
 
 2. **Click this link:**
-   <https://raw.githubusercontent.com/nataliehogg/zookeys/main/zookeys.user.js>
+   <https://raw.githubusercontent.com/nataliehogg/zookeys/main/zoo-keys.user.js>
 
    Your userscript manager will intercept it and offer to install. Click *Confirm
    installation*. That's it — you'll get updates automatically as the script is
