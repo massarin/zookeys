@@ -13,6 +13,7 @@ interface, so one keypress does what currently takes two or three clicks.
 | --- | --- |
 | `A` `B` `C` `X` | pick that answer |
 | `O` | pick "Off-centre" |
+| `P` / `L` | zoom in / out on the subject (never submits) |
 | `space` / `enter` | press Done / Next |
 | `` ` `` | toggle auto-advance |
 | `h` or `?` | show/hide the on-screen key list |
@@ -90,6 +91,19 @@ still catches it. To add or rename an answer, add a line:
 ```js
 { id: 'd', key: 'd', label: 'Dud', match: [/^dud\b/i] },
 ```
+
+Buttons with no visible text (zoom, pan, invert) are matched on their accessible
+name instead: `aria-label`, then the `title` tooltip, then `<svg><title>`, then
+`aria-describedby`. Mark such a binding `control: true` — it is then allowed to match
+the `exclude` list and never triggers auto-advance:
+
+```js
+{ id: 'zoomIn', key: 'p', label: 'Zoom in', control: true, match: [/zoom\s*in/i] },
+```
+
+If `P` flashes red, the button exposes no name your browser can read: hover it, and
+whatever text the tooltip shows is what to put in `match`. Failing that, inspect the
+button and use `aria-label`/`title` from the DOM.
 
 `id` is how a panel-rebound key is remembered, so give each binding a unique one and
 don't rename an `id` people have already remapped: their override would be orphaned

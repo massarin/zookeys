@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zoo Keys — keyboard shortcuts for Zooniverse classification
 // @namespace    https://www.zooniverse.org/
-// @version      1.1.0
+// @version      1.2.0
 // @description  Classify with single keypresses instead of clicking. Press ? for help.
 // @author       Natalie Hogg
 // @homepageURL  https://github.com/nataliehogg/zoo-keys
@@ -27,6 +27,8 @@
   //   label    what shows in the on-screen help
   //   match    regexes tried in order against each button's visible text;
   //            the first button that matches wins
+  //   control  true for viewer controls (zoom, pan, invert): clicked without
+  //            auto-advance, and allowed to match the `exclude` list
   // ---------------------------------------------------------------------------
   const CONFIG = {
     // Click the answer AND then the Done/Next button, so one keypress = one
@@ -43,6 +45,13 @@
       { id: 'c', key: 'c', label: 'C',          match: [/^c$/i, /^c[\s.:)\-–—]/i, /\bc\b/i] },
       { id: 'x', key: 'x', label: 'X',          match: [/^x$/i, /^x[\s.:)\-–—]/i, /\bx\b/i] },
       { id: 'o', key: 'o', label: 'Off-centre', match: [/off[\s-]?cent/i, /^o$/i, /^o[\s.:)\-–—]/i] },
+
+      // Viewer controls. These icon buttons have no visible text, so they are
+      // found by their accessible name / tooltip (aria-label, title, <svg><title>).
+      { id: 'zoomIn',  key: 'p', label: 'Zoom in',  control: true,
+        match: [/^zoom\s*in$/i, /zoom\s*in/i, /^\+$/] },
+      { id: 'zoomOut', key: 'l', label: 'Zoom out', control: true,
+        match: [/^zoom\s*out$/i, /zoom\s*out/i, /^[-−–]$/] },
     ],
 
     // Keys that just press Done/Next without choosing anything.
@@ -125,6 +134,16 @@
     if (text) return text;
     const img = el.querySelector('img[alt]');
     if (img) return norm(img.getAttribute('alt'));
+    // Icon-only buttons (zoom, pan, invert): the name lives in the tooltip.
+    const title = el.getAttribute('title') || el.closest('[title]')?.getAttribute('title');
+    if (title) return norm(title);
+    const svgTitle = el.querySelector('svg title, title');
+    if (svgTitle) return norm(svgTitle.textContent);
+    const described = el.getAttribute('aria-describedby');
+    if (described) {
+      const ref = document.getElementById(described);
+      if (ref) return norm(ref.textContent);
+    }
     const value = el.getAttribute('value');
     return value ? norm(value) : '';
   }
@@ -175,14 +194,17 @@
   }
 
   function choose(binding) {
-    const hit = findByPatterns(binding.match);
+    // Controls sit in the `exclude` list (they are never answers), so they have
+    // to be looked up with that filter off.
+    const hit = findByPatterns(binding.match, { allowExcluded: !!binding.control });
     if (!hit) {
       flash(`no button matching “${binding.label}”`, true);
       return;
     }
     click(hit.el);
 
-    if (!state.autoAdvance) {
+    // Zooming must never submit the classification.
+    if (binding.control || !state.autoAdvance) {
       flash(`${binding.label} → ${hit.text}`);
       return;
     }
