@@ -17,6 +17,10 @@ interface, so one keypress does what currently takes two or three clicks.
 | `` ` `` | toggle auto-advance |
 | `h` or `?` | show/hide the on-screen key list |
 
+The panel's *edit keys* button rebinds any of those answer keys without touching the
+script: click it, click the key you want to change, press the new one. Choices are
+saved in the browser, per project domain.
+
 With auto-advance on (the default), pressing `A` selects answer A **and** presses Done,
 so a full classification is a single keystroke.
 
@@ -65,21 +69,31 @@ rather than positional numbers.
 
 ## Tuning it for your project
 
-Everything adjustable is in the `CONFIG` block at the top of the script.
+Which key does what is editable in the panel (*edit keys*). Everything else is in the
+`CONFIG` block at the top of the script.
+
+Rebinding rules: `` ` ``, `h`, `?`, `/`, space and Enter are reserved, and a key
+already used by another answer is refused rather than silently stolen. *Reset to
+defaults* drops your overrides and goes back to what `CONFIG` says. While a key is
+armed, every keypress goes to the rebinder, so you cannot classify by accident.
 
 The script finds buttons by their **visible text**, not by fragile CSS selectors, so
 it survives Zooniverse redesigns. Each binding lists regexes tried in order:
 
 ```js
-{ key: 'o', label: 'Off-centre', match: [/off[\s-]?cent/i, /^o$/i] },
+{ id: 'o', key: 'o', label: 'Off-centre', match: [/off[\s-]?cent/i, /^o$/i] },
 ```
 
 If the answer in your workflow reads "Off-center lens (US spelling)", the first regex
 still catches it. To add or rename an answer, add a line:
 
 ```js
-{ key: 'd', label: 'Dud', match: [/^dud\b/i] },
+{ id: 'd', key: 'd', label: 'Dud', match: [/^dud\b/i] },
 ```
+
+`id` is how a panel-rebound key is remembered, so give each binding a unique one and
+don't rename an `id` people have already remapped: their override would be orphaned
+(harmless, but the key reverts to the `CONFIG` default).
 
 Other knobs:
 

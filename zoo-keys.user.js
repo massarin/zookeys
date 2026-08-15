@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zoo Keys — keyboard shortcuts for Zooniverse classification
 // @namespace    https://www.zooniverse.org/
-// @version      1.0.0
+// @version      1.1.0
 // @description  Classify with single keypresses instead of clicking. Press ? for help.
 // @author       Natalie Hogg
 // @homepageURL  https://github.com/nataliehogg/zoo-keys
@@ -21,7 +21,9 @@
   // ---------------------------------------------------------------------------
   // CONFIG — edit this block to match your project's answer buttons.
   //
-  //   key      the keyboard key to press (lowercase, single character)
+  //   id       stable name for this binding; keys remapped in the panel are
+  //            stored against it, so don't rename an id you've already used
+  //   key      the default keyboard key (lowercase, single character)
   //   label    what shows in the on-screen help
   //   match    regexes tried in order against each button's visible text;
   //            the first button that matches wins
@@ -36,11 +38,11 @@
     advanceDelay: 150,
 
     bindings: [
-      { key: 'a', label: 'A',          match: [/^a$/i, /^a[\s.:)\-–—]/i, /\ba\b/i] },
-      { key: 'b', label: 'B',          match: [/^b$/i, /^b[\s.:)\-–—]/i, /\bb\b/i] },
-      { key: 'c', label: 'C',          match: [/^c$/i, /^c[\s.:)\-–—]/i, /\bc\b/i] },
-      { key: 'x', label: 'X',          match: [/^x$/i, /^x[\s.:)\-–—]/i, /\bx\b/i] },
-      { key: 'o', label: 'Off-centre', match: [/off[\s-]?cent/i, /^o$/i, /^o[\s.:)\-–—]/i] },
+      { id: 'a', key: 'a', label: 'A',          match: [/^a$/i, /^a[\s.:)\-–—]/i, /\ba\b/i] },
+      { id: 'b', key: 'b', label: 'B',          match: [/^b$/i, /^b[\s.:)\-–—]/i, /\bb\b/i] },
+      { id: 'c', key: 'c', label: 'C',          match: [/^c$/i, /^c[\s.:)\-–—]/i, /\bc\b/i] },
+      { id: 'x', key: 'x', label: 'X',          match: [/^x$/i, /^x[\s.:)\-–—]/i, /\bx\b/i] },
+      { id: 'o', key: 'o', label: 'Off-centre', match: [/off[\s-]?cent/i, /^o$/i, /^o[\s.:)\-–—]/i] },
     ],
 
     // Keys that just press Done/Next without choosing anything.
@@ -62,9 +64,19 @@
 
   const STORE_KEY = 'zooKeys.settings.v1';
   const state = Object.assign(
-    { autoAdvance: CONFIG.autoAdvance, hudVisible: CONFIG.showHudOnLoad },
+    // keys: { bindingId: key } overriding CONFIG, set from the panel's edit mode.
+    { autoAdvance: CONFIG.autoAdvance, hudVisible: CONFIG.showHudOnLoad, keys: {} },
     readStore()
   );
+  if (!state.keys || typeof state.keys !== 'object') state.keys = {};
+
+  // Keys the panel refuses to bind, because they already do something else.
+  const RESERVED = new Set(['`', 'h', '?', '/', 'Escape', ...CONFIG.doneKeys]);
+
+  // The live bindings: CONFIG with any remapped keys applied.
+  function bindings() {
+    return CONFIG.bindings.map((b) => Object.assign({}, b, { key: state.keys[b.id] || b.key }));
+  }
 
   function readStore() {
     try {
@@ -78,7 +90,11 @@
     try {
       localStorage.setItem(
         STORE_KEY,
-        JSON.stringify({ autoAdvance: state.autoAdvance, hudVisible: state.hudVisible })
+        JSON.stringify({
+          autoAdvance: state.autoAdvance,
+          hudVisible: state.hudVisible,
+          keys: state.keys,
+        })
       );
     } catch (e) {
       /* private browsing, etc. — not fatal */
@@ -179,6 +195,8 @@
   // --- HUD ------------------------------------------------------------------
 
   let hud, hudFlash;
+  let editing = false; // panel is in rebind mode
+  let armed = null;    // id of the binding waiting for its new key
 
   function buildHud() {
     hud = document.createElement('div');
@@ -199,31 +217,92 @@
         #zoo-keys-hud .zk-dim { color: #9aa0a6; }
         #zoo-keys-hud .zk-flash { color: #8ce99a; min-height: 1.5em; word-break: break-word; }
         #zoo-keys-hud .zk-flash.zk-warn { color: #ff8787; }
+        /* Only the controls take clicks; the rest of the panel stays see-through
+           so it never swallows a click meant for the page underneath. */
+        #zoo-keys-hud button {
+          pointer-events: auto; cursor: pointer; font: inherit;
+          background: rgba(255,255,255,.08); color: #f0f0f2;
+          border: 1px solid rgba(255,255,255,.22); border-radius: 4px;
+          padding: 0 6px; min-width: 24px;
+        }
+        #zoo-keys-hud button:hover { background: rgba(255,255,255,.18); }
+        #zoo-keys-hud button.zk-arm { background: #ffd166; color: #16161a; border-color: #ffd166; }
+        #zoo-keys-hud .zk-wide { width: 100%; margin-top: 4px; }
       </style>
       <div class="zk-body"></div>
     `;
     document.body.appendChild(hud);
+
+    hud.addEventListener('click', (event) => {
+      const el = event.target.closest('button');
+      if (!el) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      let msg = '';
+      if (el.hasAttribute('data-zk-edit')) {
+        editing = !editing;
+        armed = null;
+      } else if (el.hasAttribute('data-zk-reset')) {
+        state.keys = {};
+        armed = null;
+        writeStore();
+        msg = 'keys reset to defaults';
+      } else if (el.hasAttribute('data-zk-bind')) {
+        const id = el.getAttribute('data-zk-bind');
+        armed = armed === id ? null : id;
+      }
+      renderHud(); // rebuilds the flash line, so flash after it
+      if (msg) flash(msg);
+    });
+
     renderHud();
   }
 
   function renderHud() {
     if (!hud) return;
     hud.style.display = state.hudVisible ? 'block' : 'none';
-    const rows = CONFIG.bindings
-      .map((b) => `<div class="zk-row"><b>${b.key.toUpperCase()}</b><span>${escapeHtml(b.label)}</span></div>`)
+
+    const rows = bindings()
+      .map((b) =>
+        editing
+          ? `<div class="zk-row"><button data-zk-bind="${escapeHtml(b.id)}"
+               class="${armed === b.id ? 'zk-arm' : ''}">${escapeHtml(keyName(b.key))}</button>
+             <span>${escapeHtml(b.label)}</span></div>`
+          : `<div class="zk-row"><b>${escapeHtml(keyName(b.key))}</b><span>${escapeHtml(b.label)}</span></div>`
+      )
       .join('');
+
+    const footer = editing
+      ? `<div class="zk-row"><span class="zk-dim">${
+           armed ? 'press a key (Esc cancels)' : 'click a key to rebind'
+         }</span></div>
+         <button class="zk-wide" data-zk-reset>reset to defaults</button>
+         <button class="zk-wide" data-zk-edit>done editing</button>`
+      : `<div class="zk-row"><span class="zk-dim">auto-advance (\`)</span><span>${
+           state.autoAdvance ? 'on' : 'off'
+         }</span></div>
+         <div class="zk-row"><span class="zk-dim">hide (h)</span><span></span></div>
+         <button class="zk-wide" data-zk-edit>edit keys</button>`;
+
     hud.querySelector('.zk-body').innerHTML = `
       <div class="zk-row"><b>Zoo Keys</b><span class="zk-dim">? = help</span></div>
       <div class="zk-sep"></div>
       ${rows}
       <div class="zk-row"><b>space</b><span>Done / Next</span></div>
       <div class="zk-sep"></div>
-      <div class="zk-row"><span class="zk-dim">auto-advance (\`)</span><span>${state.autoAdvance ? 'on' : 'off'}</span></div>
-      <div class="zk-row"><span class="zk-dim">hide (h)</span><span></span></div>
+      ${footer}
       <div class="zk-sep"></div>
       <div class="zk-flash"></div>
     `;
     hudFlash = hud.querySelector('.zk-flash');
+  }
+
+  // Printable keys show as themselves; the odd ones get a name.
+  function keyName(key) {
+    if (key === ' ') return 'space';
+    if (key.length === 1) return key.toUpperCase();
+    return key;
   }
 
   function escapeHtml(s) {
@@ -258,6 +337,41 @@
 
       const key = event.key;
 
+      // Rebinding: swallow everything so a stray press can't classify.
+      if (armed) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab'].includes(key)) return;
+
+        const id = armed;
+        armed = null;
+
+        if (key === 'Escape') {
+          renderHud();
+          flash('rebind cancelled');
+          return;
+        }
+        const next = key.length === 1 ? key.toLowerCase() : key;
+        if (RESERVED.has(next) || RESERVED.has(key)) {
+          renderHud();
+          flash(`${keyName(next)} is reserved`, true);
+          return;
+        }
+        const clash = bindings().find((b) => b.id !== id && b.key === next);
+        if (clash) {
+          renderHud();
+          flash(`${keyName(next)} is already ${clash.label}`, true);
+          return;
+        }
+        const def = CONFIG.bindings.find((b) => b.id === id);
+        if (next === def.key) delete state.keys[id];
+        else state.keys[id] = next;
+        writeStore();
+        renderHud();
+        flash(`${def.label} → ${keyName(next)}`);
+        return;
+      }
+
       if (key === '?' || (key === '/' && event.shiftKey)) {
         state.hudVisible = !state.hudVisible;
         writeStore();
@@ -266,7 +380,7 @@
         return;
       }
 
-      if (key === 'h' && !CONFIG.bindings.some((b) => b.key === 'h')) {
+      if (key === 'h' && !bindings().some((b) => b.key === 'h')) {
         state.hudVisible = !state.hudVisible;
         writeStore();
         renderHud();
@@ -292,7 +406,7 @@
         return;
       }
 
-      const binding = CONFIG.bindings.find((b) => b.key === key.toLowerCase());
+      const binding = bindings().find((b) => b.key === (key.length === 1 ? key.toLowerCase() : key));
       if (binding) {
         event.preventDefault();
         choose(binding);
