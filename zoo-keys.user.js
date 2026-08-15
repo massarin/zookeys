@@ -28,7 +28,10 @@
   //   match    regexes tried in order against each button's visible text;
   //            the first button that matches wins
   //   control  true for viewer controls (zoom, pan, invert): clicked without
-  //            auto-advance, and allowed to match the `exclude` list
+  //            auto-advance, without focus (focusing pops the tooltip over the
+  //            image), and allowed to match the `exclude` list
+  //   all      true to click every matching button, not just the best one.
+  //            Multi-image subjects give each frame its own zoom control.
   // ---------------------------------------------------------------------------
   const CONFIG = {
     // Click the answer AND then the Done/Next button, so one keypress = one
@@ -48,9 +51,9 @@
 
       // Viewer controls. These icon buttons have no visible text, so they are
       // found by their accessible name / tooltip (aria-label, title, <svg><title>).
-      { id: 'zoomIn',  key: 'p', label: 'Zoom in',  control: true,
+      { id: 'zoomIn',  key: 'p', label: 'Zoom in',  control: true, all: true,
         match: [/^zoom\s*in$/i, /zoom\s*in/i, /^\+$/] },
-      { id: 'zoomOut', key: 'l', label: 'Zoom out', control: true,
+      { id: 'zoomOut', key: 'l', label: 'Zoom out', control: true, all: true,
         match: [/^zoom\s*out$/i, /zoom\s*out/i, /^[-−–]$/] },
     ],
 
@@ -164,24 +167,29 @@
     return out;
   }
 
-  function findByPatterns(patterns, { allowExcluded = false } = {}) {
+  // Every button matched by the first pattern that matches anything, most
+  // specific first (shortest label: "A" beats "A galaxy also…").
+  function findAllByPatterns(patterns, { allowExcluded = false } = {}) {
     const items = candidates().map((el) => ({ el, text: labelText(el) })).filter((i) => i.text);
     for (const pattern of patterns) {
       const hits = items.filter(
         (i) => pattern.test(i.text) && (allowExcluded || !CONFIG.exclude.test(i.text))
       );
-      if (hits.length) {
-        // Shortest label is the most specific match ("A" beats "A galaxy also…").
-        hits.sort((a, b) => a.text.length - b.text.length);
-        return hits[0];
-      }
+      if (hits.length) return hits.sort((a, b) => a.text.length - b.text.length);
     }
-    return null;
+    return [];
   }
 
-  function click(el) {
-    el.focus({ preventScroll: true });
+  function findByPatterns(patterns, opts) {
+    return findAllByPatterns(patterns, opts)[0] || null;
+  }
+
+  // focus:false for viewer controls — a focused/hovered icon button shows its
+  // tooltip, which then sits on top of the image you're trying to look at.
+  function click(el, { focus = true } = {}) {
+    if (focus) el.focus({ preventScroll: true });
     el.click();
+    if (!focus && document.activeElement === el) el.blur();
   }
 
   function pressDone() {
@@ -196,16 +204,18 @@
   function choose(binding) {
     // Controls sit in the `exclude` list (they are never answers), so they have
     // to be looked up with that filter off.
-    const hit = findByPatterns(binding.match, { allowExcluded: !!binding.control });
-    if (!hit) {
+    const hits = findAllByPatterns(binding.match, { allowExcluded: !!binding.control });
+    if (!hits.length) {
       flash(`no button matching “${binding.label}”`, true);
       return;
     }
-    click(hit.el);
+    const targets = binding.all ? hits : hits.slice(0, 1);
+    const hit = hits[0];
+    for (const t of targets) click(t.el, { focus: !binding.control });
 
     // Zooming must never submit the classification.
     if (binding.control || !state.autoAdvance) {
-      flash(`${binding.label} → ${hit.text}`);
+      flash(`${binding.label} → ${hit.text}${targets.length > 1 ? ` x${targets.length}` : ''}`);
       return;
     }
     setTimeout(() => {

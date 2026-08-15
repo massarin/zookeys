@@ -95,10 +95,13 @@ still catches it. To add or rename an answer, add a line:
 Buttons with no visible text (zoom, pan, invert) are matched on their accessible
 name instead: `aria-label`, then the `title` tooltip, then `<svg><title>`, then
 `aria-describedby`. Mark such a binding `control: true` — it is then allowed to match
-the `exclude` list and never triggers auto-advance:
+the `exclude` list, is clicked without focus (a focused icon button pops its tooltip
+over the image) and never triggers auto-advance. Add `all: true` to click every
+matching button rather than just the best one, so multi-image subjects zoom all
+frames together:
 
 ```js
-{ id: 'zoomIn', key: 'p', label: 'Zoom in', control: true, match: [/zoom\s*in/i] },
+{ id: 'zoomIn', key: 'p', label: 'Zoom in', control: true, all: true, match: [/zoom\s*in/i] },
 ```
 
 If `P` flashes red, the button exposes no name your browser can read: hover it, and
