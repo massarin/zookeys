@@ -12,7 +12,7 @@ interface, so one keypress does what currently takes two or three clicks.
 | Key | Action |
 | --- | --- |
 | `A` `B` `C` `X` | pick that answer |
-| `O` | pick "Off-centre" |
+| `O` | pick "Off-centre" — selects only, never submits, so you can mark the centre and grade |
 | `P` / `L` | zoom in / out on the subject (never submits) |
 | `space` / `enter` | press Done / Next |
 | `` ` `` | toggle auto-advance |
@@ -104,6 +104,13 @@ frames together:
 { id: 'zoomIn', key: 'p', label: 'Zoom in', control: true, all: true, match: [/zoom\s*in/i] },
 ```
 
+An answer that opens a follow-up task (off-centre -> mark the centre -> grade) must not
+submit: mark it `noAdvance: true`. Without it, auto-advance clicks whatever `doneMatch`
+finds ~150 ms later, which in a multi-step task is the follow-up's own *Next*/*Done* —
+so the subject gets submitted before you have marked anything. Whether that button has
+rendered and enabled itself within `advanceDelay` is a race, so the same script can
+behave differently after a browser or site update.
+
 If `P` flashes red, the button exposes no name your browser can read: hover it, and
 whatever text the tooltip shows is what to put in `match`. Failing that, inspect the
 button and use `aria-label`/`title` from the DOM.
@@ -133,6 +140,7 @@ or tell people to hit *Check for updates* in the extension dashboard.
 | --- | --- | --- |
 | No panel appears | URL not matched | Add an `@match` line for your project's domain |
 | Key shows red "no button matching…" | Answer text differs from the regexes | Edit that binding's `match` list |
+| Answer submits before you finish a follow-up task | Auto-advance pressed the follow-up's button | Mark that binding `noAdvance: true` |
 | Answer selected but never submits | Done button worded differently, or slow to render | Add its text to `doneMatch`, or raise `advanceDelay` |
 | Keys do nothing at all | Manager disabled, or focus is in a text box | Check the toolbar icon; click blank page space |
 

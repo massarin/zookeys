@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zoo Keys — keyboard shortcuts for Zooniverse classification
 // @namespace    https://www.zooniverse.org/
-// @version      1.2.0
+// @version      1.3.0
 // @description  Classify with single keypresses instead of clicking. Press ? for help.
 // @author       Natalie Hogg
 // @homepageURL  https://github.com/nataliehogg/zoo-keys
@@ -32,6 +32,9 @@
   //            image), and allowed to match the `exclude` list
   //   all      true to click every matching button, not just the best one.
   //            Multi-image subjects give each frame its own zoom control.
+  //   noAdvance true for answers that open a follow-up task (mark the centre,
+  //            then grade): select the answer and stop. You press space when
+  //            the follow-up is finished.
   // ---------------------------------------------------------------------------
   const CONFIG = {
     // Click the answer AND then the Done/Next button, so one keypress = one
@@ -47,7 +50,9 @@
       { id: 'b', key: 'b', label: 'B',          match: [/^b$/i, /^b[\s.:)\-–—]/i, /\bb\b/i] },
       { id: 'c', key: 'c', label: 'C',          match: [/^c$/i, /^c[\s.:)\-–—]/i, /\bc\b/i] },
       { id: 'x', key: 'x', label: 'X',          match: [/^x$/i, /^x[\s.:)\-–—]/i, /\bx\b/i] },
-      { id: 'o', key: 'o', label: 'Off-centre', match: [/off[\s-]?cent/i, /^o$/i, /^o[\s.:)\-–—]/i] },
+      // Off-centre leads to a marking + grading task, so it must never submit.
+      { id: 'o', key: 'o', label: 'Off-centre', noAdvance: true,
+        match: [/off[\s-]?cent/i, /^o$/i, /^o[\s.:)\-–—]/i] },
 
       // Viewer controls. These icon buttons have no visible text, so they are
       // found by their accessible name / tooltip (aria-label, title, <svg><title>).
@@ -213,8 +218,8 @@
     const hit = hits[0];
     for (const t of targets) click(t.el, { focus: !binding.control });
 
-    // Zooming must never submit the classification.
-    if (binding.control || !state.autoAdvance) {
+    // Zooming, and answers with a follow-up task, must never submit.
+    if (binding.control || binding.noAdvance || !state.autoAdvance) {
       flash(`${binding.label} → ${hit.text}${targets.length > 1 ? ` x${targets.length}` : ''}`);
       return;
     }
@@ -301,7 +306,9 @@
           ? `<div class="zk-row"><button data-zk-bind="${escapeHtml(b.id)}"
                class="${armed === b.id ? 'zk-arm' : ''}">${escapeHtml(keyName(b.key))}</button>
              <span>${escapeHtml(b.label)}</span></div>`
-          : `<div class="zk-row"><b>${escapeHtml(keyName(b.key))}</b><span>${escapeHtml(b.label)}</span></div>`
+          : `<div class="zk-row"><b>${escapeHtml(keyName(b.key))}</b><span>${escapeHtml(b.label)}${
+              b.noAdvance ? ' <span class="zk-dim">(no submit)</span>' : ''
+            }</span></div>`
       )
       .join('');
 
