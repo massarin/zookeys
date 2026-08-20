@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zoo Keys — keyboard shortcuts for Zooniverse classification
 // @namespace    https://www.zooniverse.org/
-// @version      1.3.1
+// @version      1.3.2
 // @description  Classify with single keypresses instead of clicking. Press ? for help.
 // @author       Natalie Hogg
 // @homepageURL  https://github.com/nataliehogg/zoo-keys
@@ -191,13 +191,20 @@
 
   // focus:false for viewer controls — a focused/hovered icon button shows its
   // tooltip, which then sits on top of the image you're trying to look at.
+  // Nothing is left focused: a focused answer button steals the next space
+  // (the browser activates it), which re-picked the answer instead of Done.
+  // Focus is only taken so the click lands like a real one; it never stays.
   function click(el, { focus = true } = {}) {
     if (focus) el.focus({ preventScroll: true });
     el.click();
-    if (!focus && document.activeElement === el) el.blur();
+    if (document.activeElement === el) el.blur();
   }
 
   function pressDone() {
+    // Drop focus first, so a stray activation can't land on the old answer.
+    if (document.activeElement && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
     const hit = findByPatterns(CONFIG.doneMatch, { allowExcluded: true });
     if (hit) {
       click(hit.el);
@@ -465,6 +472,24 @@
     },
     true // capture, so the page can't swallow the keypress first
   );
+
+  // Space activates a <button> on keyup, not keydown (and React answer widgets
+  // often listen there too), so cancelling keydown alone is not enough: swallow
+  // the whole press. keypress is legacy but still drives page scroll on Safari.
+  for (const type of ['keypress', 'keyup']) {
+    document.addEventListener(
+      type,
+      (event) => {
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (isTyping(event.target)) return;
+        const key = event.key === 'Spacebar' ? ' ' : event.key;
+        if (!CONFIG.doneKeys.includes(key)) return;
+        event.preventDefault();
+        event.stopPropagation();
+      },
+      true
+    );
+  }
 
   if (document.body) buildHud();
   else document.addEventListener('DOMContentLoaded', buildHud);
