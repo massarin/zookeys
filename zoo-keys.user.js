@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zoo Keys — keyboard shortcuts for Zooniverse classification
 // @namespace    https://www.zooniverse.org/
-// @version      1.3.0
+// @version      1.3.1
 // @description  Classify with single keypresses instead of clicking. Press ? for help.
 // @author       Natalie Hogg
 // @homepageURL  https://github.com/nataliehogg/zoo-keys
@@ -361,11 +361,18 @@
 
   // --- key handling ---------------------------------------------------------
 
+  // Only real text entry counts. Zooniverse answers are radios/checkboxes, and
+  // the grading sub-task uses sliders: focus lands on them after you answer, and
+  // treating those as "typing" swallowed every later keypress (notably space).
+  const TEXT_INPUT = /^(|text|search|url|tel|email|password|number|date|datetime-local|month|week|time)$/i;
+
   function isTyping(target) {
     if (!target) return false;
     if (target.isContentEditable) return true;
     const tag = target.tagName;
-    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (tag === 'INPUT') return TEXT_INPUT.test(target.getAttribute('type') || '');
+    return false;
   }
 
   document.addEventListener(
@@ -437,10 +444,15 @@
       }
 
       if (CONFIG.doneKeys.includes(key)) {
+        // Always swallow it: space is Done, never a page scroll and never a
+        // second click on whatever answer button still has focus.
+        event.preventDefault();
+        event.stopPropagation();
         const done = pressDone();
-        if (done) {
-          flash(`→ ${done}`);
-          event.preventDefault();
+        if (done) flash(`→ ${done}`);
+        else {
+          flash('no Done button found', true);
+          console.debug('[zoo-keys] buttons seen:', candidates().map(labelText).filter(Boolean));
         }
         return;
       }
